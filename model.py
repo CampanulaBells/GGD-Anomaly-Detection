@@ -1,15 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
 class GCN(nn.Module):
     """
     Forked from GRAND-Lab/CoLA
     """
+
     def __init__(self, in_ft, out_ft, act, bias=True):
         super(GCN, self).__init__()
         self.fc = nn.Linear(in_ft, out_ft, bias=False)
         self.act = nn.PReLU() if act == 'prelu' else act
-        
+
         if bias:
             self.bias = nn.Parameter(torch.FloatTensor(out_ft))
             self.bias.data.fill_(0.0)
@@ -33,54 +36,63 @@ class GCN(nn.Module):
             out = torch.bmm(adj, seq_fts)
         if self.bias is not None:
             out += self.bias
-        
+
         return self.act(out)
+
 
 class AvgReadout(nn.Module):
     """
     Forked from GRAND-Lab/CoLA
     """
+
     def __init__(self):
         super(AvgReadout, self).__init__()
 
     def forward(self, seq):
         return torch.mean(seq, 1)
 
+
 class MaxReadout(nn.Module):
     """
     Forked from GRAND-Lab/CoLA
     """
+
     def __init__(self):
         super(MaxReadout, self).__init__()
 
     def forward(self, seq):
-        return torch.max(seq,1).values
+        return torch.max(seq, 1).values
+
 
 class MinReadout(nn.Module):
     """
     Forked from GRAND-Lab/CoLA
     """
+
     def __init__(self):
         super(MinReadout, self).__init__()
 
     def forward(self, seq):
         return torch.min(seq, 1).values
 
+
 class WSReadout(nn.Module):
     """
     Forked from GRAND-Lab/CoLA
     """
+
     def __init__(self):
         super(WSReadout, self).__init__()
 
     def forward(self, seq, query):
-        query = query.permute(0,2,1)
-        sim = torch.matmul(seq,query)
-        sim = F.softmax(sim,dim=1)
+        query = query.permute(0, 2, 1)
+        sim = torch.matmul(seq, query)
+        sim = F.softmax(sim, dim=1)
         sim = sim.repeat(1, 1, 64)
-        out = torch.mul(seq,sim)
-        out = torch.sum(out,1)
+        out = torch.mul(seq, sim)
+        out = torch.sum(out, 1)
         return out
+
 
 class Contextual_Discriminator(nn.Module):
     def __init__(self, n_h, negsamp_round):
@@ -101,10 +113,11 @@ class Contextual_Discriminator(nn.Module):
         scs.append(self.f_k(h_pl, c))
         c_mi = c
         for _ in range(self.negsamp_round):
-            c_mi = torch.cat((c_mi[-2:-1,:], c_mi[:-1,:]),0)
+            c_mi = torch.cat((c_mi[-2:-1, :], c_mi[:-1, :]), 0)
             scs.append(self.f_k(h_pl, c_mi))
         logits = torch.cat(tuple(scs))
         return logits
+
 
 class Patch_Discriminator(nn.Module):
     def __init__(self, n_h, negsamp_round):
@@ -129,6 +142,7 @@ class Patch_Discriminator(nn.Module):
             scs.append(self.f_k(h_unano, h_mi))
         logits = torch.cat(tuple(scs))
         return logits
+
 
 class Model(nn.Module):
     def __init__(self, n_in, n_h, activation, negsamp_round_patch, negsamp_round_context, readout):
